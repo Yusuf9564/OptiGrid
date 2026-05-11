@@ -27,7 +27,6 @@ public class WorldBox_Triangle : MonoBehaviour
 
         worldContainer = new GameObject("TRIANGLE_WORLD_BOX");
         worldContainer.layer = 2; // Ignore Raycast (Tıklamayı engellemez)
-
         // 1. ADIM: Üçgenlerin sınırlarını (Bounds) hesapla
         Bounds bounds = new Bounds(gridGen.allNodes[0].transform.position, Vector3.zero);
         foreach (Node n in gridGen.allNodes)

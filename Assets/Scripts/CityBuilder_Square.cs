@@ -4,10 +4,11 @@ using System.Collections.Generic;
 public class CityBuilder_Square : MonoBehaviour
 {
     private GridGenerator_Square gridGen;
+    private GameObject[] wasteAssets;
 
-    private GameObject[] skyscrapers, midRangeBuildings, residentialHouses;
-
-    [Header("Yerleşim Ayarları")]
+    [Header("Atık Dağılım Ayarları")]
+    [Range(0f, 1f)] public float spawnChance = 0.7f;
+    public float yOffset = 0.05f;
     public float minBuildingSpacing = 1.6f;
     public float streetMargin = 0.60f;
 
@@ -22,9 +23,7 @@ public class CityBuilder_Square : MonoBehaviour
 
     void LoadAssets()
     {
-        skyscrapers = Resources.LoadAll<GameObject>("Buildings/Skyscrapers");
-        midRangeBuildings = Resources.LoadAll<GameObject>("Buildings/MidRange");
-        residentialHouses = Resources.LoadAll<GameObject>("Buildings/Residential");
+        wasteAssets = Resources.LoadAll<GameObject>("Buildings/Residential");
     }
 
     public void BuildAdvancedCity()
@@ -33,41 +32,32 @@ public class CityBuilder_Square : MonoBehaviour
         ClearCity();
 
         float s = gridGen.spacing;
+        int blockCount = 0; // Blok sayacı
 
         foreach (Node n in gridGen.allNodes)
         {
             Vector2Int c = n.GridCoord;
-
-            Node right = gridGen.GetNode(c.x + 1, c.y);
-            Node up = gridGen.GetNode(c.x, c.y + 1);
             Node diag = gridGen.GetNode(c.x + 1, c.y + 1);
-
-            if (right == null || up == null || diag == null) continue;
-
-            float distRight = Vector3.Distance(n.transform.position, right.transform.position);
-            float distUp = Vector3.Distance(n.transform.position, up.transform.position);
-            if (distRight > s * 1.5f || distUp > s * 1.5f) continue;
+            if (diag == null) continue;
 
             Vector3 blockCenter = (n.transform.position + diag.transform.position) / 2f;
-            GenerateBlockDetails(blockCenter);
+
+            // --- REZERVASYON KONTROLÜ ---
+            if (blockCount == 0)
+            {
+                Debug.Log("Square Index 0: Bank alanı için boş bırakıldı.");
+                blockCount++;
+                continue;
+            }
+
+            GenerateWasteBlock(blockCenter);
+            blockCount++;
         }
     }
 
-    void GenerateBlockDetails(Vector3 center)
+    void GenerateWasteBlock(Vector3 center)
     {
-        float dist = center.magnitude;
-
-        // Zone sınırları (genişletilmiş)
-        // dist < 15  → CBD çekirdeği      (gökdelen, 2x2 yoğun)
-        // dist < 35  → Gökdelen saçağı    (gökdelen, 1x1 seyrek)
-        // dist < 60  → Orta boy bölgesi   (midRange, 2x2)
-        // dist >= 60 → Dış halka          (residential, 2x2)
-        bool isCBD = dist < 15f;
-        bool isSkyscraperZone = dist < 35f;
-        bool isMidZone = dist < 60f;
-
-        int rows = isCBD ? 2 : (isSkyscraperZone ? 1 : 2);
-
+        int rows = 2; // Kare blok içi 2x2 düzen
         float safeZone = gridGen.spacing * streetMargin;
         float step = safeZone / rows;
         float startOffset = (safeZone / 2f) - (step / 2f);
@@ -76,43 +66,40 @@ public class CityBuilder_Square : MonoBehaviour
         {
             for (int z = 0; z < rows; z++)
             {
+                if (Random.value > spawnChance) continue;
+
                 Vector3 offset = new Vector3(x * step - startOffset, 0, z * step - startOffset);
                 Vector3 spawnPos = center + offset;
 
                 if (IsOccupied(spawnPos)) continue;
 
-                GameObject prefab = null;
-                float h = 1f;
-                float w = step * 0.70f;
-
-                if (isSkyscraperZone && skyscrapers.Length > 0)
+                if (wasteAssets.Length > 0)
                 {
-                    prefab = skyscrapers[Random.Range(0, skyscrapers.Length)];
-                    h = Random.Range(2.5f, 5.0f) * Mathf.Clamp(35f / (dist + 1f), 1f, 2.5f);
+                    GameObject prefab = wasteAssets[Random.Range(0, wasteAssets.Length)];
+                    float scale = step * 0.70f;
+                    SpawnBuilding(prefab, spawnPos, scale);
                 }
-                else if (isMidZone && midRangeBuildings.Length > 0)
-                {
-                    prefab = midRangeBuildings[Random.Range(0, midRangeBuildings.Length)];
-                    h = Random.Range(1.3f, 2.3f);
-                }
-                else if (residentialHouses.Length > 0)
-                {
-                    prefab = residentialHouses[Random.Range(0, residentialHouses.Length)];
-                    h = Random.Range(0.8f, 1.3f);
-                    w *= 0.8f;
-                }
-
-                if (prefab != null)
-                    SpawnBuilding(prefab, spawnPos, h, w);
             }
         }
     }
 
-    void SpawnBuilding(GameObject prefab, Vector3 pos, float h, float w)
+    void SpawnBuilding(GameObject prefab, Vector3 pos, float scale)
     {
         GameObject b = Instantiate(prefab, pos, Quaternion.identity, transform);
         b.transform.rotation = Quaternion.Euler(0, Random.Range(0, 4) * 90f, 0);
-        b.transform.localScale = new Vector3(w, h, w);
+
+        // --- OTOMATİK SIĞDIRMA (Auto-Fit) ---
+        // Kare bloklarda minBuildingSpacing bizim için bir sınır.
+        // Nesnenin genişliği bu sınırdan büyükse küçültüyoruz.
+        float finalScale = Mathf.Min(scale, minBuildingSpacing * 0.9f);
+
+        b.transform.localScale = new Vector3(finalScale, finalScale, finalScale);
+
+        // --- GÖMÜLME FIX ---
+        Vector3 cPos = b.transform.position;
+        cPos.y += (finalScale * 0.6f) + yOffset;
+        b.transform.position = cPos;
+
         occupiedPositions.Add(pos);
     }
 

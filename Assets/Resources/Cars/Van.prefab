@@ -371,6 +371,7 @@ GameObject:
   - component: {fileID: 683930735519063769}
   - component: {fileID: 2346738693472614543}
   - component: {fileID: 4543159005243683516}
+  - component: {fileID: -5955063914079757564}
   m_Layer: 0
   m_Name: Van
   m_TagString: Untagged
@@ -455,3 +456,20 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &-5955063914079757564
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9181701585240893179}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba579a527ddf9e745882121b93fc0e16, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Navigator
+  speed: 8
+  woodCount: 0
+  metalCount: 0
+  totalBenchesProduced: 0
+  bankPrefab: {fileID: 5032153111147774408, guid: 550d2c71d7313014fa02b34bbdf64c76, type: 3}

@@ -4,14 +4,11 @@ using System.Collections.Generic;
 public class CityBuilder : MonoBehaviour
 {
     private GridGenerator gridGen;
+    private GameObject[] wasteAssets;
 
-    private GameObject[] skyscrapers;
-    private GameObject[] midRangeBuildings;
-    private GameObject[] residentialHouses;
-
-    [Header("Bölge Eşikleri (hexSize çarpanı)")]
-    public float skyscraperZoneMultiplier = 2f;
-    public float midRangeZoneMultiplier = 4f;
+    [Header("Atık Dağılım Ayarları")]
+    [Range(0f, 1f)] public float spawnChance = 0.7f;
+    public float yOffset = 0.05f;
 
     private List<Vector3> occupiedPositions = new List<Vector3>();
     private List<float> occupiedRadii = new List<float>();
@@ -25,9 +22,7 @@ public class CityBuilder : MonoBehaviour
 
     void LoadAssets()
     {
-        skyscrapers = Resources.LoadAll<GameObject>("Buildings/Skyscrapers");
-        midRangeBuildings = Resources.LoadAll<GameObject>("Buildings/MidRange");
-        residentialHouses = Resources.LoadAll<GameObject>("Buildings/Residential");
+        wasteAssets = Resources.LoadAll<GameObject>("Buildings/Residential");
     }
 
     public void BuildCity()
@@ -39,50 +34,31 @@ public class CityBuilder : MonoBehaviour
         }
         ClearCity();
 
-        foreach (Vector3 hexCenter in gridGen.hexCenters)
-            BuildHexCell(hexCenter);
+        // --- REZERVASYON SİSTEMİ ---
+        for (int i = 0; i < gridGen.hexCenters.Count; i++)
+        {
+            // Eğer bu ilk altıgense (0. indeks), buraya çöp yapma, boş bırak.
+            if (i == 0)
+            {
+                Debug.Log("Merkez nokta (Index 0) Bank üretimi için boş bırakıldı.");
+                continue;
+            }
+
+            BuildHexCell(gridGen.hexCenters[i]);
+        }
     }
 
     void BuildHexCell(Vector3 center)
     {
         float s = gridGen.hexSize;
-        float dist = new Vector2(center.x, center.z).magnitude;
-
-        bool isSky = dist < s * skyscraperZoneMultiplier;
-        bool isMid = dist < s * midRangeZoneMultiplier;
-
         float inRadius = s * Mathf.Sqrt(3f) * 0.5f * 0.80f;
 
-        // ─────────────────────────────────────────────
-        // Bölgeye göre ızgara ve bina parametreleri
-        // Gökdelen: 2x2, büyük bina → sadece 1-2 tanesi sığar
-        // MidRange:  3x2, orta bina → 3-4 tanesi sığar
-        // Konut:     4x4, küçük bina → 8-12 tanesi sığar
-        // ─────────────────────────────────────────────
-        int gridCols, gridRows;
-        float bw, bhMin, bhMax, spacing;
-
-        if (isSky)
-        {
-            gridCols = 2; gridRows = 2;
-            bw = s * 0.45f;
-            bhMin = 5f; bhMax = 9f;
-            spacing = s * 0.55f; // büyük bina → geniş mesafe → az sayıda
-        }
-        else if (isMid)
-        {
-            gridCols = 3; gridRows = 2;
-            bw = s * 0.32f;
-            bhMin = 2f; bhMax = 3.5f;
-            spacing = s * 0.38f; // orta bina → orta mesafe
-        }
-        else
-        {
-            gridCols = 4; gridRows = 4;
-            bw = s * 0.20f;
-            bhMin = 0.5f; bhMax = 1.3f;
-            spacing = s * 0.22f; // küçük bina → sık
-        }
+        int gridCols = 4;
+        int gridRows = 4;
+        float bw = s * 0.20f;
+        float bhMin = 0.5f;
+        float bhMax = 1.3f;
+        float spacing = s * 0.22f;
 
         float stepX = (inRadius * 2f) / (gridCols + 1);
         float stepZ = (inRadius * 2f) / (gridRows + 1);
@@ -94,29 +70,22 @@ public class CityBuilder : MonoBehaviour
         {
             for (int col = 0; col < gridCols; col++)
             {
+                if (Random.value > spawnChance) continue;
+
                 float ox = (col - (gridCols - 1) * 0.5f) * stepX;
                 float oz = (row - (gridRows - 1) * 0.5f) * stepZ;
 
-                Vector3 spawnPos = new Vector3(center.x + ox, 0f, center.z + oz);
+                Vector3 spawnPos = new Vector3(center.x + ox, yOffset, center.z + oz);
 
                 if (!IsInsideHex(spawnPos, center, inRadius)) continue;
                 if (IsOccupied(spawnPos, spacing)) continue;
 
                 GameObject prefab = null;
                 float bwActual = bw;
-                float bh = Random.Range(bhMin, bhMax);
 
-                if (isSky && skyscrapers != null && skyscrapers.Length > 0)
+                if (wasteAssets != null && wasteAssets.Length > 0)
                 {
-                    prefab = PickUnused(skyscrapers, usedPrefabs);
-                }
-                else if (isMid && midRangeBuildings != null && midRangeBuildings.Length > 0)
-                {
-                    prefab = PickUnused(midRangeBuildings, usedPrefabs);
-                }
-                else if (residentialHouses != null && residentialHouses.Length > 0)
-                {
-                    prefab = PickUnused(residentialHouses, usedPrefabs);
+                    prefab = PickUnused(wasteAssets, usedPrefabs);
                     bwActual = bw * 0.85f;
                 }
 
@@ -126,10 +95,12 @@ public class CityBuilder : MonoBehaviour
                 float jitter = Random.Range(-5f, 5f);
 
                 usedPrefabs.Add(prefab);
-                SpawnBuilding(prefab, spawnPos, bh, bwActual, baseAngle + jitter, spacing);
+                SpawnBuilding(prefab, spawnPos, Random.Range(bhMin, bhMax), bwActual, baseAngle + jitter, spacing);
             }
         }
     }
+
+    // --- YARDIMCI FONKSİYONLAR ---
 
     bool IsInsideHex(Vector3 pos, Vector3 center, float inRadius)
     {
@@ -148,7 +119,6 @@ public class CityBuilder : MonoBehaviour
     {
         for (int i = 0; i < occupiedPositions.Count; i++)
         {
-            // Her bina kendi yarıçapını + yeni binanın yarıçapını korur
             float minDist = (occupiedRadii[i] + radius) * 0.5f;
             if (Vector3.Distance(occupiedPositions[i], pos) < minDist)
                 return true;
@@ -173,7 +143,16 @@ public class CityBuilder : MonoBehaviour
     {
         GameObject b = Instantiate(prefab, pos, Quaternion.identity, transform);
         b.transform.rotation = Quaternion.Euler(0f, yRot, 0f);
-        b.transform.localScale = new Vector3(w, h, w);
+
+        float uniformScale = w;
+        b.transform.localScale = new Vector3(uniformScale, uniformScale, uniformScale);
+
+        Vector3 currentPos = b.transform.position;
+        float liftAmount = (uniformScale * 0.55f) + yOffset + 0.1f;
+
+        currentPos.y += liftAmount;
+        b.transform.position = currentPos;
+
         occupiedPositions.Add(pos);
         occupiedRadii.Add(radius);
     }
