@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.Rendering;
 
 public class Navigator : MonoBehaviour
 {
@@ -108,18 +109,37 @@ public class Navigator : MonoBehaviour
 
     void SaveCarbonData()
     {
-        // systemName → PlayerPrefs key dönüşümü
         string keyName;
         if (systemName == "TRANSİT") keyName = "Hex";
         else if (systemName == "ÜÇGEN") keyName = "Tri";
         else if (systemName == "KARE") keyName = "Square";
         else keyName = systemName;
 
+        // Rota uzunluğu — tüm node'lar arası mesafelerin toplamı
+        float rotaUzunlugu = 0f;
+        for (int i = 1; i < path.Count; i++)
+            rotaUzunlugu += Vector3.Distance(
+                path[i - 1].transform.position,
+                path[i].transform.position);
+
+        // Düz hat — başlangıç ile bitiş arası kuş uçuşu
+        float duzMesafe = Vector3.Distance(
+            path[0].transform.position,
+            path[path.Count - 1].transform.position);
+
+        // Dolambaç oranı — % olarak
+        float dolambac = duzMesafe > 0f
+            ? ((rotaUzunlugu - duzMesafe) / duzMesafe) * 100f
+            : 0f;
+
         PlayerPrefs.SetFloat(keyName + "_RealCO2", totalCO2);
-        PlayerPrefs.SetInt(keyName + "_Olculdu", 1);
+        PlayerPrefs.SetFloat(keyName + "_RotaUzunlugu", rotaUzunlugu);
+        PlayerPrefs.SetFloat(keyName + "_DogruMesafe", duzMesafe);
+        PlayerPrefs.SetFloat(keyName + "_Dolambaç", dolambac);
+        PlayerPrefs.SetInt(keyName + "_Ölçüldü", 1);
         PlayerPrefs.Save();
 
-        Debug.Log($"[Navigator] {keyName} → CO2: {totalCO2:F2}kg kaydedildi.");
+        Debug.Log($"[Navigator] {keyName} → CO2: {totalCO2:F2}kg | Rota: {rotaUzunlugu:F1}m | Dolambaç: %{dolambac:F1}");
     }
 
     IEnumerator CollectWaste()
@@ -192,8 +212,27 @@ public class Navigator : MonoBehaviour
 
         // 2. Üçgen grid — merkez node
         var triGrid = Object.FindFirstObjectByType<GridGenerator_Triangle>();
-        if (triGrid != null && triGrid.allNodes != null && triGrid.allNodes.Count > 0)
-            return triGrid.allNodes[0].transform.position;
+        if (triGrid != null && triGrid.allNodes != null && triGrid.allNodes.Count >= 3)
+        {
+            // Tüm node'ların ortalama pozisyonunu bul (grid merkezi)
+            Vector3 gridCenter = Vector3.zero;
+            foreach (var node in triGrid.allNodes)
+                gridCenter += node.transform.position;
+            gridCenter /= triGrid.allNodes.Count;
+
+            // Merkeze en yakın 3 node'u bul
+            List<Node> sorted = new List<Node>(triGrid.allNodes);
+            sorted.Sort((a, b) =>
+                Vector3.Distance(a.transform.position, gridCenter)
+                .CompareTo(Vector3.Distance(b.transform.position, gridCenter)));
+
+            Node n1 = sorted[0];
+            Node n2 = sorted[1];
+            Node n3 = sorted[2];
+
+            // Bu 3 node'un centroid'i = üçgenin tam ortası
+            return (n1.transform.position + n2.transform.position + n3.transform.position) / 3f;
+        }
 
         // 3. Kare grid — ilk iki node'un ortası
         var sqGrid = Object.FindFirstObjectByType<GridGenerator_Square>();

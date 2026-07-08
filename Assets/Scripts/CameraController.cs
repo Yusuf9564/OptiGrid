@@ -25,8 +25,10 @@ public class CameraController : MonoBehaviour
     public float lockTransitionSpeed = 5f;
 
     [Header("C Kilidi — Araç Takip")]
-    public float followHeightRatio =0.7f;
-    public float followSmoothness = 5f;
+    public float followHeight = 8f;
+    public float followDistance = 12f;
+    public float followPositionSmooth = 5f;
+    public float followRotationSmooth = 2f;
     private Transform targetVehicle;
 
     private enum CameraMode { Free, Locked, Follow }
@@ -84,9 +86,8 @@ public class CameraController : MonoBehaviour
 
         if (currentMode == CameraMode.Follow)
         {
-            currentZoomDistance = Mathf.Clamp(
-                currentZoomDistance - scroll * zoomSpeed,
-                minZoom, maxZoom);
+            followDistance = Mathf.Clamp(followDistance - scroll * zoomSpeed * 0.1f, 5f, 60f);
+            followHeight = Mathf.Clamp(followHeight - scroll * zoomSpeed * 0.1f, 2f, 30f);
         }
         else if (currentMode == CameraMode.Free && !isOrbiting)
         {
@@ -136,21 +137,23 @@ public class CameraController : MonoBehaviour
     {
         if (targetVehicle == null) { currentMode = CameraMode.Free; return; }
 
-        float verticalOffset = currentZoomDistance * followHeightRatio;
-        float horizontalOffset = currentZoomDistance * (1.5f - followHeightRatio);
-
         Vector3 desired = targetVehicle.position
-            + new Vector3(0f, verticalOffset, -horizontalOffset);
+            - targetVehicle.forward * followDistance
+            + Vector3.up * followHeight;
 
         transform.position = Vector3.Lerp(
             transform.position, desired,
-            Time.deltaTime * followSmoothness);
+            Time.deltaTime * followPositionSmooth);
 
-        Quaternion lookRot = Quaternion.LookRotation(
-            targetVehicle.position - transform.position);
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation, lookRot,
-            Time.deltaTime * followSmoothness);
+        // Hedefe bakış yönünü yumuşak ve yavaş uygula
+        Vector3 lookDir = targetVehicle.position - transform.position;
+        if (lookDir.sqrMagnitude > 0.001f)
+        {
+            Quaternion lookRot = Quaternion.LookRotation(lookDir);
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation, lookRot,
+                Time.deltaTime * followRotationSmooth);
+        }
     }
 
     void HandleOrbit()

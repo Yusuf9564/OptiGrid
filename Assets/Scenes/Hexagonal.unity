@@ -743,16 +743,16 @@ MonoBehaviour:
   moveSpeed: 30
   fastMultiplier: 2.5
   orbitSensitivity: 5
-  orbitTarget: {fileID: 0}
   zoomSpeed: 60
   minZoom: 5
   maxZoom: 300
   lockedPosition: {x: 0, y: 250, z: 0}
   lockedRotation: {x: 90, y: 0, z: 0}
-  lockTransitionSpeed: 5
+  lockTransitionSpeed: 7
   followHeight: 15
   followDistance: 20
-  followSmoothness: 5
+  followPositionSmooth: 2
+  followRotationSmooth: 3
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0

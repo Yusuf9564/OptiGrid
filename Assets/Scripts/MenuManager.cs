@@ -176,14 +176,20 @@ public class MenuManager : MonoBehaviour
     public void SonuclariSifirla()
     {
         string[] keys = {
-            "Hex_Ölçüldü",     "Tri_Ölçüldü",     "Square_Ölçüldü",
-            "Hex_RotaUzunlugu","Tri_RotaUzunlugu", "Square_RotaUzunlugu",
-            "Hex_DogruMesafe", "Tri_DogruMesafe",  "Square_DogruMesafe",
-            "Hex_Dolambaç",    "Tri_Dolambaç",     "Square_Dolambaç",
-            "Hex_RealCO2",     "Tri_RealCO2",      "Square_RealCO2"
-        };
+        "Hex_Ölçüldü",      "Tri_Ölçüldü",      "Square_Ölçüldü",
+        "Hex_RotaUzunlugu", "Tri_RotaUzunlugu", "Square_RotaUzunlugu",
+        "Hex_DogruMesafe",  "Tri_DogruMesafe",  "Square_DogruMesafe",
+        "Hex_Dolambaç",     "Tri_Dolambaç",     "Square_Dolambaç",
+        "Hex_RealCO2",      "Tri_RealCO2",      "Square_RealCO2"
+    };
         foreach (string key in keys) PlayerPrefs.DeleteKey(key);
         PlayerPrefs.Save();
+
+        // UI metinlerini temizle
+        if (hexSonuc != null) hexSonuc.text = "<b>HEXAGONAL</b>\n<color=grey>Henüz ölçülmedi</color>";
+        if (triSonuc != null) triSonuc.text = "<b>TRIGONAL</b>\n<color=grey>Henüz ölçülmedi</color>";
+        if (squareSonuc != null) squareSonuc.text = "<b>SQUARE</b>\n<color=grey>Henüz ölçülmedi</color>";
+        if (kazananText != null) kazananText.text = "";
 
         GuncelleKarsilastirmaButonu();
         if (karsilastirmaPanel != null) karsilastirmaPanel.SetActive(false);
